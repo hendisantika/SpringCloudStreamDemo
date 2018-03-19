@@ -1,0 +1,14 @@
+server:
+  port: 8082
+
+spring:
+  cloud:
+    stream:
+      bindings:
+        poloStreamInput:
+          destination: marcoPolo
+      rabbit:
+        bindings:
+          poloStreamInput:
+            consumer:
+              ttl: 120000
