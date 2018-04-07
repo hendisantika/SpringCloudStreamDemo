@@ -24,7 +24,9 @@ It does not matter whether you start Marco first or Polo first. After both apps 
 
 #Examining the queue
 
-While Marco and Polo are running, you can examine the queue by pointing a web browser to the RabbitMQ console (http://localhost:15672/ if running locally). Click on the "Queues" tab at the top and you should see the "marcoPolo" queue listed. The actual queue name will vary, but will always begin with marcoPolo.anonymous..
+While Marco and Polo are running, you can examine the queue by pointing a web browser to the RabbitMQ console (http://localhost:15672/ if running locally). Click on the "Queues" tab at the top and you should see the "marcoPolo" queue listed. The actual queue name will vary, but will always begin with `marcoPolo.anonymous..`
+
+![Overview](img/overview.png "Overview Message")
 
 
 
@@ -40,7 +42,7 @@ You’ll also notice that the total number of messages in the queue is capped ou
 
 If you click on the queue name, you’ll see more details about the queue. This include a graph that shows how many messages are in the queue.
 
-
+![Messages](img/messages.png "Overview Message")
 
 Again, this shows that the queue has maxed out at roughly 120 messages.
 
