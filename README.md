@@ -21,3 +21,29 @@ For simplicity’s sake, you can run them using the spring-boot Maven plugin. Op
 `mvnw spring-boot:run`
 
 It does not matter whether you start Marco first or Polo first. After both apps are running, you should see Polo logging the message it received from Marco, once every minute.
+
+#Examining the queue
+
+While Marco and Polo are running, you can examine the queue by pointing a web browser to the RabbitMQ console (http://localhost:15672/ if running locally). Click on the "Queues" tab at the top and you should see the "marcoPolo" queue listed. The actual queue name will vary, but will always begin with marcoPolo.anonymous..
+
+
+
+Notice the items under the "Features" column. These tell use three important things about the queue:
+
+ * `Excl` - This is an exclusive queue. Polo created the queue and Polo is the only client that can consume messages from the queue. When Polo dies, the queue will be destroyed.
+
+ * `AD` - The queue is set to auto-delete. The queue will be deleted when the last subscriber unsubscribes. This feature is all but meaningless in light of the Excl feature.
+
+ * `TTL` - This queue has a time-to-live set for its messages.
+
+You’ll also notice that the total number of messages in the queue is capped out at roughly 120. It might be slightly higher or lower depending on the timing of when the data is captured, but it will never exceed greatly beyond 120 as long as there is only one producer that is producing messages at a rate of one per second.
+
+If you click on the queue name, you’ll see more details about the queue. This include a graph that shows how many messages are in the queue.
+
+
+
+Again, this shows that the queue has maxed out at roughly 120 messages.
+
+It’s important to understand that the queue size isn’t capped on a specific number of messages, but rather each message is given a maximum TTL. If there are more than one producer and/or if the producer is producing messages at a rate faster than 1 per second, then the queue size will increase. But none of the messages will survive in the queue without either being consumed or being automatically removed by the broker after their TTL expires.
+
+
