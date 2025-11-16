@@ -8,14 +8,6 @@ updates:
       timezone: Asia/Jakarta
     open-pull-requests-limit: 10
 
- - package-ecosystem: maven
-    directory: "/polo"
-    schedule:
-      interval: daily
-      time: '05:00'
-      timezone: Asia/Jakarta
-    open-pull-requests-limit: 10
-    
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
