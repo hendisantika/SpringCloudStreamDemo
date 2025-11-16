@@ -1,51 +1,271 @@
 # Marco-Polo: A Spring Cloud Stream Demo
 
-This repository contains two separate Spring Cloud Stream applications:
+This repository contains two separate Spring Cloud Stream applications demonstrating reactive message streaming with
+RabbitMQ:
 
-* Marco : A message producer (e.g., a Spring Cloud Stream Source)
+* **Marco**: A message producer that publishes messages every second using Spring Cloud Stream functional programming
+  model
+* **Polo**: A message consumer that processes messages slowly (1 minute delay) to demonstrate queue backpressure and TTL
 
-* Polo : A message consumer (e.g., a Spring Cloud Stream Sink)
+## Overview
 
-When running, Marco will produce a message every 1 second. Polo will consume the messages, but with a caveat. To simulate a slow consumer and to achieve a backed up queue, Polo will sleep for 1 minute after consuming the message. Since Marco is publishing more frequently than Polo is consuming, the queue could potentially back up and grow to a size unlimited by nothing by platform resources.
+Marco produces messages at a rate of 1 per second. Polo consumes messages but deliberately sleeps for 1 minute after
+each message to simulate a slow consumer. This creates a backed-up queue scenario.
 
-Polo, however, is configured to not let that happen. As the consumer of the messages, Polo is responsible for creating the queue. When it creates the queue, it sets a message time-to-live (TTL) to 120000 (e.g., 2 minutes). Therefore, any messages that are left unconsumed by Polo after 2 minutes will be automatically discarded by the broker.
+To prevent unbounded queue growth, Polo configures a message Time-To-Live (TTL) of 120 seconds (2 minutes). Messages
+unconsumed after 2 minutes are automatically discarded by RabbitMQ.
 
-### Running the applications
+## Technologies
 
-First, you’ll need to start a RabbitMQ broker. (See https://www.rabbitmq.com/download.html for details.)
+- **Spring Boot**: 3.5.6
+- **Spring Cloud Stream**: 4.3.0 (functional programming model)
+- **Spring Cloud Function**: 4.3.0
+- **RabbitMQ**: Latest (via Docker)
+- **Java**: 21
+- **Build Tool**: Maven 3.9.11+
 
-With the broker started, you can run Marco and Polo just as you would any Spring Boot application. This includes importing them into Spring Tool Suite and using the Boot Dashboard or building them and running the executable JAR files produced by the build.
+## Prerequisites
 
-For simplicity’s sake, you can run them using the spring-boot Maven plugin. Open two console windows, one for Marco and one for Polo, and change into the corresponding project directory for each window. Then perform the following command in each window:
+- Java 21 or higher
+- Maven 3.6.3 or higher
+- Docker Desktop (running)
 
-`mvnw spring-boot:run`
+## Quick Start
 
-It does not matter whether you start Marco first or Polo first. After both apps are running, you should see Polo logging the message it received from Marco, once every minute.
+### 1. Start RabbitMQ
 
-#Examining the queue
+First, ensure Docker Desktop is running, then start RabbitMQ using Docker Compose:
 
-While Marco and Polo are running, you can examine the queue by pointing a web browser to the RabbitMQ console (http://localhost:15672/ if running locally). Click on the "Queues" tab at the top and you should see the "marcoPolo" queue listed. The actual queue name will vary, but will always begin with `marcoPolo.anonymous..`
+```bash
+docker-compose up -d
+```
+
+This will start RabbitMQ with management console on:
+
+- AMQP Port: `5672`
+- Management Console: `http://localhost:15672` (username: `guest`, password: `guest`)
+
+### 2. Build the Applications
+
+Build both Marco and Polo applications:
+
+```bash
+# Build Marco
+cd marco
+mvn clean package
+
+# Build Polo
+cd ../polo
+mvn clean package
+```
+
+### 3. Run the Applications
+
+Open two terminal windows and run each application:
+
+**Terminal 1 - Polo (Consumer):**
+
+```bash
+cd polo
+mvn spring-boot:run
+```
+
+**Terminal 2 - Marco (Producer):**
+
+```bash
+cd marco
+mvn spring-boot:run
+```
+
+It doesn't matter which application you start first. After both are running, you should see Polo logging messages from
+Marco approximately once per minute.
+
+### 4. Monitor the Applications
+
+- **Polo** runs on: `http://localhost:8082`
+- **Marco** runs on: `http://localhost:8081`
+- **RabbitMQ Management Console**: `http://localhost:15672`
+
+## Examining the Queue
+
+While Marco and Polo are running, you can examine the queue by pointing a web browser to the RabbitMQ console
+at http://localhost:15672 (username: `guest`, password: `guest`).
+
+1. Click on the **"Queues"** tab at the top
+2. Look for the "marcoPolo" queue (the full name will include `.anonymous.` followed by a random ID)
 
 ![Overview](img/overview.png "Overview Message")
 
+### Queue Features
 
+Notice the items under the "Features" column which indicate important queue characteristics:
 
-Notice the items under the "Features" column. These tell use three important things about the queue:
+* **Excl** - This is an exclusive queue. Polo created the queue and is the only client that can consume messages from
+  it. When Polo terminates, the queue will be automatically destroyed.
 
- * `Excl` - This is an exclusive queue. Polo created the queue and Polo is the only client that can consume messages from the queue. When Polo dies, the queue will be destroyed.
+* **AD** - The queue is set to auto-delete. It will be deleted when the last subscriber unsubscribes. This feature works
+  in conjunction with the Excl feature.
 
- * `AD` - The queue is set to auto-delete. The queue will be deleted when the last subscriber unsubscribes. This feature is all but meaningless in light of the Excl feature.
+* **TTL** - This queue has a time-to-live set for its messages (2 minutes / 120 seconds).
 
- * `TTL` - This queue has a time-to-live set for its messages.
+### Queue Size
 
-You’ll also notice that the total number of messages in the queue is capped out at roughly 120. It might be slightly higher or lower depending on the timing of when the data is captured, but it will never exceed greatly beyond 120 as long as there is only one producer that is producing messages at a rate of one per second.
+You'll notice that the total number of messages in the queue is capped at roughly **120 messages**. It might be slightly
+higher or lower depending on timing, but it will never exceed this by much as long as:
 
-If you click on the queue name, you’ll see more details about the queue. This include a graph that shows how many messages are in the queue.
+- There is only one producer
+- Messages are produced at a rate of one per second
+- The TTL is set to 120 seconds
+
+Click on the queue name to see more details, including a graph showing the number of messages over time:
 
 ![Messages](img/messages.png "Overview Message")
 
-Again, this shows that the queue has maxed out at roughly 120 messages.
+### Understanding TTL
 
-It’s important to understand that the queue size isn’t capped on a specific number of messages, but rather each message is given a maximum TTL. If there are more than one producer and/or if the producer is producing messages at a rate faster than 1 per second, then the queue size will increase. But none of the messages will survive in the queue without either being consumed or being automatically removed by the broker after their TTL expires.
+The queue size isn't capped by a specific message count, but rather by the TTL. Here's how it works:
+
+- Each message has a maximum lifetime of 120 seconds
+- Messages are either consumed by Polo or automatically removed after TTL expires
+- If you have multiple producers or faster production rates, the queue size will increase proportionally
+- However, no message will survive in the queue beyond its TTL period
+
+## Architecture & Code Updates
+
+This project has been updated to use **Spring Cloud Stream 4.x** functional programming model, which replaces the
+deprecated annotation-based approach.
+
+### Marco (Producer)
+
+**Before (Deprecated):**
+
+```java
+@EnableBinding(Source.class)
+@InboundChannelAdapter(value = Source.OUTPUT, poller = @Poller(...))
+```
+
+**After (Functional):**
+
+```java
+
+@Bean
+public Supplier<Flux<String>> marcoSupplier() {
+    return () -> Flux.interval(Duration.ofSeconds(1))
+            .map(tick -> "MARCO: " + System.currentTimeMillis());
+}
+```
+
+Configuration (`marco/src/main/resources/application.yml`):
+
+```yaml
+spring:
+  cloud:
+    stream:
+      function:
+        definition: marcoSupplier
+      bindings:
+        marcoSupplier-out-0:
+          destination: marcoPolo
+```
+
+### Polo (Consumer)
+
+**Before (Deprecated):**
+
+```java
+
+@EnableBinding(Sink.class)
+@ServiceActivator(inputChannel = Sink.INPUT)
+public void loggerSink(Object payload) { ...}
+```
+
+**After (Functional):**
+
+```java
+
+@Bean
+public Consumer<String> poloConsumer() {
+    return payload -> {
+        logger.info("POLO: " + payload);
+        Thread.sleep(60000);
+    };
+}
+```
+
+Configuration (`polo/src/main/resources/application.yml`):
+
+```yaml
+spring:
+  cloud:
+    stream:
+      function:
+        definition: poloConsumer
+      bindings:
+        poloConsumer-in-0:
+          destination: marcoPolo
+      rabbit:
+        bindings:
+          poloConsumer-in-0:
+            consumer:
+              ttl: 120000
+```
+
+## Troubleshooting
+
+### Docker not running
+
+If you see "Connection refused" errors, ensure Docker Desktop is running:
+
+```bash
+docker ps
+```
+
+### Port already in use
+
+If ports 8081 or 8082 are already in use:
+
+```bash
+# Find and kill the process
+lsof -ti:8081 | xargs kill -9
+lsof -ti:8082 | xargs kill -9
+```
+
+### Maven version issues
+
+Ensure you're using Maven 3.6.3 or higher:
+
+```bash
+mvn -version
+```
+
+## Project Structure
+
+```
+SpringCloudStreamDemo/
+├── docker-compose.yml          # RabbitMQ configuration
+├── README.md
+├── marco/                      # Producer application
+│   ├── pom.xml
+│   └── src/
+│       ├── main/
+│       │   ├── java/com/hendisantika/marco/
+│       │   │   └── MarcoApplication.java
+│       │   └── resources/
+│       │       └── application.yml
+│       └── test/
+└── polo/                       # Consumer application
+    ├── pom.xml
+    └── src/
+        ├── main/
+        │   ├── java/com/hendisantika/polo/
+        │   │   └── PoloApplication.java
+        │   └── resources/
+        │       └── application.yml
+        └── test/
+```
+
+## License
+
+This is a demonstration project for learning Spring Cloud Stream.
 
 
