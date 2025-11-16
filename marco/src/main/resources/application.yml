@@ -4,6 +4,8 @@ server:
 spring:
   cloud:
     stream:
+      function:
+        definition: marcoSupplier
       bindings:
-        poloStreamInput:
+        marcoSupplier-out-0:
           destination: marcoPolo

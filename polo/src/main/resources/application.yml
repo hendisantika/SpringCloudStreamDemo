@@ -4,11 +4,13 @@ server:
 spring:
   cloud:
     stream:
+      function:
+        definition: poloConsumer
       bindings:
-        poloStreamInput:
+        poloConsumer-in-0:
           destination: marcoPolo
       rabbit:
         bindings:
-          poloStreamInput:
+          poloConsumer-in-0:
             consumer:
               ttl: 120000

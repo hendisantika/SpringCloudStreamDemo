@@ -4,22 +4,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.stream.annotation.EnableBinding;
-import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.context.annotation.Bean;
+
+import java.util.function.Consumer;
 
 @SpringBootApplication
-@EnableBinding(Sink.class)
 public class PoloApplication {
 
-    private static Logger logger = LoggerFactory.getLogger(PoloApplication.class);
+    private static final Logger logger = LoggerFactory.getLogger(PoloApplication.class);
 
 	public static void main(String[] args) {
 		SpringApplication.run(PoloApplication.class, args);
 	}
 
-    @ServiceActivator(inputChannel = Sink.INPUT)
-    public void loggerSink(Object payload) throws Exception {
-        logger.info("POLO: " + payload);
-        Thread.sleep(60000);
+    @Bean
+    public Consumer<String> poloConsumer() {
+        return payload -> {
+            logger.info("POLO: " + payload);
+            try {
+                Thread.sleep(60000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.error("Thread interrupted", e);
+            }
+        };
     }
 }

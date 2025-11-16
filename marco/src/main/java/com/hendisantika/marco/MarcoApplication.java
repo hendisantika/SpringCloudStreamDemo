@@ -2,15 +2,13 @@ package com.hendisantika.marco;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.context.annotation.Bean;
-import org.springframework.integration.annotation.InboundChannelAdapter;
-import org.springframework.integration.annotation.Poller;
-import org.springframework.integration.core.MessageSource;
-import org.springframework.messaging.support.GenericMessage;
+import reactor.core.publisher.Flux;
+
+import java.time.Duration;
+import java.util.function.Supplier;
 
 @SpringBootApplication
-@EnableBinding(Source.class)
 public class MarcoApplication {
 
 	public static void main(String[] args) {
@@ -18,8 +16,8 @@ public class MarcoApplication {
 	}
 
     @Bean
-    @InboundChannelAdapter(value = Source.OUTPUT, poller = @Poller(fixedDelay = "1000", maxMessagesPerPoll = "1"))
-    public MessageSource<String> timerMessageSource() {
-        return () -> new GenericMessage<>("MARCO: " + System.currentTimeMillis());
+    public Supplier<Flux<String>> marcoSupplier() {
+        return () -> Flux.interval(Duration.ofSeconds(1))
+                .map(tick -> "MARCO: " + System.currentTimeMillis());
     }
 }
